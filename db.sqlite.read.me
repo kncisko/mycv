@@ -1,0 +1,92 @@
+To create sqlite db, we use root connection:
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+app.module
+...
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { User } from './users/entities/user.entity';
+
+...
+
+imports: [
+    TypeOrmModule.forRoot({
+      type: 'sqlite',
+      database: 'db.sqlite',
+      entities: [],
+      synchronize: true,
+    }),
+  ...
+]
+
+Then, create entities User and Report:
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+User.entity.ts:
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity()
+export class User {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  email: string;
+
+  @Column()
+  password: string;
+}
+
+Report.entity.ts:
+import { Entity, Column, PrimaryGeneratedColumn } from 'typeorm';
+
+@Entity()
+export class Report {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  price: number;
+}
+
+Create repositories within User.module.ts and Report.module.ts:
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+User.module.ts
+...
+@Module({
+  imports: [TypeOrmModule.forFeature([User])], // Creates a repository
+  controllers: [UsersController],
+  providers: [UsersService],
+})
+
+Report.module.ts
+...
+@Module({
+  imports: [TypeOrmModule.forFeature([Report])], // Creates a repository
+  controllers: [ReportsController],
+  providers: [ReportsService],
+})
+
+And finally, list entities inside root connection:
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+
+app.module.ts
+...
+TypeOrmModule.forRoot({
+  type: 'sqlite',
+  database: 'db.sqlite',
+  entities: [User, Report], // <-- entities listed here
+  synchronize: true,
+}),
+__________________________________________________________________________________________________________
+
+db.sqlite at this point became binary database file. To view contents of database, we can use extension SQLite.
+After installing extension, open command pallete (CMD + SHIFT + P ), and select
+SQLite: OpenDatabase
+
+It will open a new tab named SQLITE EXPLORER at the bottom of the EXPLORER (column to the left).
+
+__________________________________________________________________________________________________________
+
+This approach allows automatic creation of repositories classes (UsersRepository, ReportsRepository) with
+CRUD methods such as Save(), Update(), Remove and so on.

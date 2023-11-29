@@ -1,0 +1,71 @@
+How to remove password from findUser endpoint response?
+¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯
+This is recommended approach from nestjs documentation.
+
+Inside users controller we are using ClassSerializerInterceptor.
+Both UseInterceptor and ClassSerializerInterceptor are imported from @nestjs/common:
+
+import {
+...
+  UseInterceptors,
+  ClassSerializerInterceptor,
+} from '@nestjs/common';
+
+then we decorate method findUser with Use UseInterceptor decorator:
+
+@UseInterceptors(ClassSerializerInterceptor)
+@Get('/:id')
+findUser(@Param('id') id: string) {
+  return this._service.findOne(parseInt(id));
+}
+
+For this approch to work, we also need to mark the property to be excluded by this interceptor.
+In entity class file (user.entity.ts) we need to import the following decorator:
+
+import { Exclude } from 'class-transformer';
+
+Then we simply decorate property to be excluded from the response by the ClassSerializerInterceptor:
+
+...
+@Column()
+@Exclude()
+password: string;
+...
+
+This approach, however, faces a particular problem.
+To illustrate, consider the following scenario: we implement another method inside the controller, findUserForAdmin. This endpoint uses the same service method that findUser does,
+findOne(), but this method should return additional properties that administrator may require, such as Age or Full Name. By using recommended aproach,
+this would not be possible because if Age and Full Name are decorated with @Exclude(), there is no way we could show full set of properties to the admin, and only id and email to
+other users.
+
+To adress this potential issue, a different aproach is required.
+
+Firstly, we need to remove @Exclude() decorator from the property "password" inside User entity.
+Secondly, instead of ClassSerializerInterceptor, we are goint to implement a custom interceptor that will be using User DTO to describe how to serialize user object before
+returning it to the client.
+
+Inspect serialize.interceptor.ts for the implementation of this interceptor.
+
+Inside the user controller, the method now uses different decorator:
+
+...
+import { SerializeInterceptor } from './interceptors/serialize.interceptor';
+...
+@UseInterceptors(SerializeInterceptor)
+@Get('/:id')
+findUser(@Param('id') id: string) {
+  return this._service.findOne(parseInt(id));
+}
+
+DTO for serialization of User inside Serialize interceptor in in the file user.dto.ts, class is UserDto.
+The idea is that only the properties that we want to be returned are those decorated with @Expose() decorator inside UserDto.
+Inside the interceptor, excludeExtraneousValues option set to true takes care of that:
+
+...
+return handler.handle().pipe(
+  map((data: any) => {
+    // Run something before the response is sent out
+    return plainToClass(UserDto, data, { excludeExtraneousValues: true });
+  }),
+);
+...
